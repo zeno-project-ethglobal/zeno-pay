@@ -1,0 +1,1 @@
+export const PAYMENT_OFFSET = 100; // USD amount threshold for 2FA
