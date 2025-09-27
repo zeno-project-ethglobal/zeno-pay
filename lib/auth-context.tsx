@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from "react";
 
 type User = {
   username: string;
@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('zenopay-user');
+    const savedUser = localStorage.getItem("zenopay-user");
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -30,12 +30,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (username: string) => {
     const newUser = { username };
     setUser(newUser);
-    localStorage.setItem('zenopay-user', JSON.stringify(newUser));
+    localStorage.setItem("zenopay-user", JSON.stringify(newUser));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('zenopay-user');
+    localStorage.removeItem("zenopay-user");
+    localStorage.removeItem("userPassword");
+    localStorage.removeItem("zenopay-dkg-eoa");
   };
 
   return (
@@ -48,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

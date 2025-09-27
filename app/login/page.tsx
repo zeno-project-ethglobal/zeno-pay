@@ -25,8 +25,8 @@ export default function LoginPage() {
       setError("Username is required");
       return false;
     }
-    if (!/^[a-zA-Z0-9]+$/.test(username)) {
-      setError("Username must be alphanumeric only");
+    if (!/^[a-zA-Z0-9-]+$/.test(username)) {
+      setError("Username must be alphanumeric with hyphens only");
       return false;
     }
     if (!password.trim()) {
@@ -47,6 +47,8 @@ export default function LoginPage() {
 
     // Simulate authentication delay
     await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    localStorage.setItem("userPassword", password);
 
     // For demo purposes, we'll always redirect to 2FA
     // In a real app, you would authenticate against your backend
@@ -97,7 +99,7 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) =>
-                setUsername(e.target.value.replace(/[^a-zA-Z0-9]/g, ""))
+                setUsername(e.target.value.replace(/[^a-zA-Z0-9-]/g, ""))
               }
               onKeyPress={handleKeyPress}
               placeholder="Enter your username"

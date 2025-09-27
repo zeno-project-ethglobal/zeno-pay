@@ -5,8 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { userLogin } from "@/utils/loginHelper";
 
 export default function TwoFactorVerifyPage() {
   const router = useRouter();
@@ -27,37 +35,43 @@ export default function TwoFactorVerifyPage() {
     }
   }, [type, username, router]);
 
-  const validateOtp = (value: string) => {
-    return /^\d{6}$/.test(value);
-  };
-
   const handleVerify = async () => {
-    if (!validateOtp(otp)) {
-      showToast("Please enter a valid 6-digit OTP", "error");
-      return;
-    }
-
     setIsSubmitting(true);
-
-    // Simulate OTP verification delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // For demo purposes, we'll accept any 6-digit OTP
-    // In a real app, you would verify against your backend
-    const isValidOtp = otp === "123456" || otp.length === 6; // Accept 123456 or any 6-digit code for demo
-
-    if (!isValidOtp) {
-      showToast("Invalid OTP. Please try again.", "error");
-      setIsSubmitting(false);
-      setOtp("");
-      return;
-    }
 
     if (type === "login") {
       // Complete login process
-      login(username!);
-      showToast(`Welcome back, ${username}!`, "success");
-      router.push("/");
+      if (username) {
+        try {
+          const response = await userLogin({
+            rpcUrl: process.env.NEXT_PUBLIC_RPC_URL!,
+            id: username,
+            proof: otp,
+          });
+
+          // Check if response has error
+          if (response.error) {
+            showToast(response.error, "error");
+            router.push("/login");
+            return;
+          }
+
+          // Check if response has result and correct status
+          if (response.result && response.result.status === "login_success") {
+            // Store dkg_eoa in localStorage
+            localStorage.setItem("zenopay-dkg-eoa", response.result.dkg_eoa);
+
+            login(username!);
+            showToast(`Welcome back, ${username}!`, "success");
+            router.push("/");
+          } else {
+            showToast("Login verification failed", "error");
+            router.push("/login");
+          }
+        } catch {
+          showToast("An error occurred during verification", "error");
+          router.push("/login");
+        }
+      }
     } else if (type === "payment") {
       // Complete payment process
       console.log("Payment verified and processed:", { username, amount });
@@ -104,60 +118,32 @@ export default function TwoFactorVerifyPage() {
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col space-y-8 px-8 pb-8">
-          <div className="flex flex-col items-center space-y-4">
-            <InputOTP
-              value={otp}
-              onChange={setOtp}
-              maxLength={6}
-              className="gap-2"
-              disabled={isSubmitting}
+          <div className="space-y-2">
+            <Label
+              htmlFor="otp"
+              className="text-sm font-medium text-foreground"
             >
-              <InputOTPGroup className="gap-2">
-                <InputOTPSlot
-                  index={0}
-                  className="w-12 h-12 text-lg font-semibold border-border focus-glow bg-input text-foreground transition-all duration-200 hover:border-accent/50 cursor-text"
-                />
-                <InputOTPSlot
-                  index={1}
-                  className="w-12 h-12 text-lg font-semibold border-border focus-glow bg-input text-foreground transition-all duration-200 hover:border-accent/50 cursor-text"
-                />
-                <InputOTPSlot
-                  index={2}
-                  className="w-12 h-12 text-lg font-semibold border-border focus-glow bg-input text-foreground transition-all duration-200 hover:border-accent/50 cursor-text"
-                />
-                <InputOTPSlot
-                  index={3}
-                  className="w-12 h-12 text-lg font-semibold border-border focus-glow bg-input text-foreground transition-all duration-200 hover:border-accent/50 cursor-text"
-                />
-                <InputOTPSlot
-                  index={4}
-                  className="w-12 h-12 text-lg font-semibold border-border focus-glow bg-input text-foreground transition-all duration-200 hover:border-accent/50 cursor-text"
-                />
-                <InputOTPSlot
-                  index={5}
-                  className="w-12 h-12 text-lg font-semibold border-border focus-glow bg-input text-foreground transition-all duration-200 hover:border-accent/50 cursor-text"
-                />
-              </InputOTPGroup>
-            </InputOTP>
+              Verify Code
+            </Label>
+            <Input
+              id="otp"
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Verify Code"
+              className="focus-glow bg-input border-border text-foreground placeholder:text-muted-foreground h-12 text-base transition-all duration-200 hover:border-accent/50 cursor-text"
+              disabled={isSubmitting}
+            />
           </div>
 
           <div className="mt-auto">
             <Button
               onClick={handleVerify}
-              disabled={!validateOtp(otp) || isSubmitting}
+              disabled={!otp.trim() || isSubmitting}
               className="w-full gradient-linear hover:glow-accent-sm button-press text-white font-semibold h-14 text-lg rounded-xl border-0 shadow-lg cursor-pointer disabled:cursor-not-allowed transition-all duration-200"
             >
               {isSubmitting ? "Verifying..." : "Verify"}
             </Button>
-          </div>
-
-          <div className="text-center space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Didn't receive a code? Check your authenticator app
-            </p>
-            <p className="text-xs text-muted-foreground">
-              For demo: use any 6-digit code or "123456"
-            </p>
           </div>
         </CardContent>
       </Card>
