@@ -6,9 +6,16 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { PAYMENT_OFFSET } from "@/lib/constants";
+import { processTransaction } from "@/utils/transactionHelper";
 
 export default function Home() {
   const { user, isLoading } = useAuth();
@@ -40,8 +47,8 @@ export default function Home() {
       showToast("Recipient username is required", "error");
       return false;
     }
-    if (!/^[a-zA-Z0-9]+$/.test(username)) {
-      showToast("Username must be alphanumeric only", "error");
+    if (!/^[a-zA-Z0-9-]+$/.test(username)) {
+      showToast("Username must be alphanumeric with hyphens only", "error");
       return false;
     }
     if (!amount || parseFloat(amount) <= 0) {
@@ -62,33 +69,31 @@ export default function Home() {
 
     setIsSubmitting(true);
 
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const paymentAmount = parseFloat(amount);
-
-    if (paymentAmount >= PAYMENT_OFFSET) {
-      // Redirect to 2FA verification for amounts >= offset
-      router.push(`/2fa-verify?type=payment&username=${encodeURIComponent(username)}&amount=${amount}`);
-    } else {
-      // Process payment directly for amounts < offset
-      console.log("Payment processed directly:", { username, amount: paymentAmount });
-      showToast(`Payment of $${paymentAmount} sent to ${username}`, "success");
-      setUsername("");
-      setAmount("");
+    try {
+      const result = await processTransaction(username, BigInt(amount));
+      if (result.status === "2fa_required") {
+        router.push("/2fa-verify?type=payment");
+      } else {
+        console.log("Tx sent:", result);
+        setUsername("");
+        setAmount("");
+      }
+    } catch (error) {
+      showToast("An error occurred while processing payment", "error");
+      console.error("Payment error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   };
 
   const formatAmount = (value: string) => {
-    const numericValue = value.replace(/[^0-9.]/g, '');
-    const parts = numericValue.split('.');
+    const numericValue = value.replace(/[^0-9.]/g, "");
+    const parts = numericValue.split(".");
     if (parts.length > 2) {
-      return parts[0] + '.' + parts.slice(1).join('');
+      return parts[0] + "." + parts.slice(1).join("");
     }
     if (parts[1] && parts[1].length > 2) {
-      return parts[0] + '.' + parts[1].slice(0, 2);
+      return parts[0] + "." + parts[1].slice(0, 2);
     }
     return numericValue;
   };
@@ -127,14 +132,19 @@ export default function Home() {
 
         <CardContent className="flex-1 flex flex-col space-y-8 px-8 pb-8">
           <div className="space-y-2">
-            <Label htmlFor="username" className="text-sm font-medium text-foreground">
+            <Label
+              htmlFor="username"
+              className="text-sm font-medium text-foreground"
+            >
               Recipient Username
             </Label>
             <Input
               id="username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
+              onChange={(e) =>
+                setUsername(e.target.value.replace(/[^a-zA-Z0-9-]/g, ""))
+              }
               placeholder="Enter username"
               className="focus-glow bg-input border-border text-foreground placeholder:text-muted-foreground h-12 text-base transition-all duration-200 hover:border-accent/50 cursor-text"
               disabled={isSubmitting}
@@ -142,11 +152,16 @@ export default function Home() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount" className="text-sm font-medium text-foreground">
+            <Label
+              htmlFor="amount"
+              className="text-sm font-medium text-foreground"
+            >
               Amount (USD)
             </Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                $
+              </span>
               <Input
                 id="amount"
                 type="text"
@@ -162,7 +177,12 @@ export default function Home() {
           <div className="mt-auto">
             <Button
               onClick={handlePayment}
-              disabled={!username.trim() || !amount || parseFloat(amount) <= 0 || isSubmitting}
+              disabled={
+                !username.trim() ||
+                !amount ||
+                parseFloat(amount) <= 0 ||
+                isSubmitting
+              }
               className="w-full gradient-linear hover:glow-accent-sm button-press text-white font-semibold h-14 text-lg rounded-xl border-0 shadow-lg cursor-pointer disabled:cursor-not-allowed transition-all duration-200"
             >
               {isSubmitting ? "Processing..." : "Pay Now"}

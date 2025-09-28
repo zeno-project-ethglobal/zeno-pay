@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { userLogin } from "@/utils/loginHelper";
+import { finalizeWith2FA } from "@/utils/transactionHelper";
 
 export default function TwoFactorVerifyPage() {
   const router = useRouter();
@@ -27,13 +28,6 @@ export default function TwoFactorVerifyPage() {
 
   const type = searchParams.get("type"); // "login" or "payment"
   const username = searchParams.get("username");
-  const amount = searchParams.get("amount");
-
-  useEffect(() => {
-    if (!type || !username) {
-      router.push("/login");
-    }
-  }, [type, username, router]);
 
   const handleVerify = async () => {
     setIsSubmitting(true);
@@ -73,12 +67,13 @@ export default function TwoFactorVerifyPage() {
         }
       }
     } else if (type === "payment") {
-      // Complete payment process
-      console.log("Payment verified and processed:", { username, amount });
-      showToast(`Payment of $${amount} to ${username} verified!`, "success");
-      router.push("/?payment=success");
+      const response = await finalizeWith2FA(otp);
+      console.log(response, "response");
+      if (response.signature && Object.keys(response.signature).length > 0) {
+        showToast("Payment is successful", "success");
+        router.push("/?payment=success");
+      }
     }
-
     setIsSubmitting(false);
   };
 
@@ -90,15 +85,15 @@ export default function TwoFactorVerifyPage() {
 
   const getDescription = () => {
     if (type === "login") {
-      return "Enter the 6-digit code from your authenticator app";
+      return "Enter the code to verify your identity";
     }
     if (type === "payment") {
-      return `Verify payment of $${amount} to ${username}`;
+      return `This payment requires 2FA`;
     }
     return "Enter your verification code";
   };
 
-  if (!type || !username) {
+  if (!type) {
     return null;
   }
 
