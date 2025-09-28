@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,14 @@ export function Navbar() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
+  const [username, setUsername] = useState<string>("");
+
+  useEffect(() => {
+    const storedUsername = localStorage.getItem("username");
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+  }, []);
 
   const fetchWalletBalance = async (
     walletAddress: string,
@@ -162,7 +170,7 @@ export function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Avatar className="cursor-pointer hover-scale transition-all duration-200 hover:scale-110">
                     <AvatarFallback className="gradient-radial text-white">
-                      {user.username.charAt(0).toUpperCase()}
+                      {(username || user?.username || "U").charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
@@ -170,6 +178,11 @@ export function Navbar() {
                   align="end"
                   className="glass-card border-border w-48"
                 >
+                  <div className="px-3 py-2 border-b border-border">
+                    <p className="text-sm font-medium text-blue-400">
+                      {username || user?.username || "User"}
+                    </p>
+                  </div>
                   <DropdownMenuItem
                     onClick={(e) => {
                       if (isLoadingAssets) {
